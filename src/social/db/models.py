@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,6 +46,12 @@ class Post(Base, TimestampMixin):
         Index("ix_posts_entity_status", "entity_id", "status"),
         Index("ix_posts_account_status", "account_id", "status"),
         Index("ix_posts_status_scheduled", "status", "scheduled_for"),
+        Index(
+            "ix_posts_failed_retry",
+            "status",
+            "next_retry_at",
+            postgresql_where=text("status = 'failed'"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=new_uuid)
@@ -63,5 +69,6 @@ class Post(Base, TimestampMixin):
     engagement: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=None)
     source: Mapped[str | None] = mapped_column(String(255), nullable=True)
     retry_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     account: Mapped["Account | None"] = relationship(back_populates="posts")

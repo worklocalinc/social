@@ -1,4 +1,4 @@
-.PHONY: install run dev migrate up down reset lint
+.PHONY: install run dev migrate up down reset lint worker
 
 install:
 	pip install -e ".[dev]"
@@ -25,6 +25,9 @@ reset:
 	docker compose up -d
 	sleep 2
 	alembic upgrade head
+
+worker:
+	python -m social.worker
 
 lint:
 	ruff check src/

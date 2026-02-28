@@ -1,13 +1,17 @@
+import logging
 import uuid
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from social.core.encryption import encrypt_credentials
+from social.core.encryption import decrypt_credentials, encrypt_credentials
 from social.core.enums import Platform
 from social.core.exceptions import NotFound
 from social.db.models import Account
+from social.platforms.registry import get_adapter
 from social.schemas.accounts import AccountCreate, AccountUpdate
+
+logger = logging.getLogger(__name__)
 
 
 async def create_account(db: AsyncSession, data: AccountCreate) -> Account:
@@ -76,5 +80,18 @@ async def delete_account(db: AsyncSession, account_id: uuid.UUID) -> None:
 
 
 async def verify_account(db: AsyncSession, account_id: uuid.UUID) -> dict:
-    await get_account(db, account_id)
-    return {"status": "ok", "message": "Credential verification not yet implemented (Phase 2)"}
+    account = await get_account(db, account_id)
+    if not account.credentials:
+        return {"status": "error", "message": "No credentials stored for this account"}
+    try:
+        credentials = decrypt_credentials(account.credentials)
+        adapter = get_adapter(account.platform, credentials)
+        valid = await adapter.verify_credentials(credentials)
+        if valid:
+            return {"status": "ok", "message": f"{account.platform} credentials verified"}
+        return {"status": "error", "message": f"{account.platform} credential verification failed"}
+    except ValueError as e:
+        return {"status": "error", "message": str(e)}
+    except Exception as e:
+        logger.error("Credential verification error for account %s: %s", account_id, e)
+        return {"status": "error", "message": f"Verification failed: {e}"}

@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     cors_origins: str = "*"
 
+    worker_poll_interval: float = 5.0
+    worker_batch_size: int = 20
+    worker_concurrency: int = 10
+    worker_max_retries: int = 5
+    worker_retry_base_delay: float = 30.0
+
 
 @lru_cache
 def get_settings() -> Settings:
